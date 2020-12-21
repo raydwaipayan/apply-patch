@@ -157,7 +157,7 @@ sub git_change_branch {
 }
 
 sub run_clang_format {
-	if ($clang_format_diff eq '') {
+	if (! -e $clang_format_diff) {
 		console_err('Error: This script requires clang-format-diff to be installed.');
 		exit(2);
 	}
