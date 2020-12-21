@@ -214,7 +214,13 @@ if ($orig_branch ne $test_branch) {
 }
 
 foreach my $patch (@patch_files) {
+	if (! -e $patch) {
+		console_err("Patchfile not found: $patch");
+		next;
+	}
+
 	apply($patch);
+
 	if ($start_rev eq $end_rev) {
 		console_err("Patch apply failed: $patch");
 	} else {
