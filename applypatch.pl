@@ -12,6 +12,7 @@ use Term::ANSIColor qw(:constants);
 use Getopt::Long qw(:config no_auto_abbrev);
 
 my $root;
+my $python = "python3";
 my $clang_format_diff = '';
 my $clang_format_opt = '-p1 -i';
 my $use_clang_format = 0;
@@ -49,6 +50,7 @@ if (scalar @cmd_args == 0 || $help != 0) {
 }
 
 my %VCS_cmds_git = (
+	"check_apply_patch" => "git apply --check \$patch",
 	"apply_patch" => "git am \$patch",
 	"apply_diff_patch" => "git apply \$patch",
 	"clear_changes" => "git reset --hard",
@@ -105,7 +107,7 @@ sub console_err {
 	print RED . $out . RESET . "\n";
 }
 
-sub get_cmd_path { 
+sub get_cmd_path {
 	my $path = `sh -c 'command -v $_[0]'`;
 	$path =~ s/\n$//g;
 	return $path;
@@ -163,7 +165,7 @@ sub run_clang_format {
 	}
 
 	console_out("Running clang-format");
-	my $cmd = $VCS_cmds_git{"get_diff"} . " $start_rev..$end_rev | $clang_format_diff $clang_format_opt";
+	my $cmd = $VCS_cmds_git{"get_diff"} . " $start_rev..$end_rev | $python $clang_format_diff $clang_format_opt";
 	execute_cmd($cmd);
 
 	$cmd = $VCS_cmds_git{"get_diff"} . " > clang-format-fixes.diff";
@@ -174,16 +176,50 @@ sub run_clang_format {
 	execute_cmd($cmd);
 }
 
+sub check_apply {
+	my ($patch) = @_;
+	my $cmd = $VCS_cmds_git{"check_apply_patch"};
+	$cmd =~ s/(\$\w+)/$1/eeg;
+	execute_cmd($cmd);
+	return 1 if ($? == 0);
+	return 0;
+}
+
 sub apply {
 	my ($patch) = @_;
-	$start_rev = git_get_revision();
 
-	my $cmd = $VCS_cmds_git{"apply_patch"};
-	$cmd =~ s/(\$\w+)/$1/eeg;
-	console_out($cmd);
-	execute_cmd($cmd);
+	# check if patch applies; if not, exit
+	if (check_apply($patch)) {
+		$start_rev = git_get_revision();
+		my $cmd = $VCS_cmds_git{"apply_patch"};
+		$cmd =~ s/(\$\w+)/$1/eeg;
+		console_out($cmd);
+		execute_cmd($cmd);
 
-	$end_rev = git_get_revision();
+		$end_rev = git_get_revision();
+	}
+}
+
+sub get_clang_version {
+	my $version = `clang-format --version`;
+	$version =~ /version\s*(\d)\./;
+	return $1;
+}
+
+sub find_clang_format_diff {
+	my $clang_format_diff;
+	if (get_cmd_path('clang-format-diff.py') ne '') {
+		$clang_format_diff = get_cmd_path('clang-format-diff.py');
+	}
+	elsif (get_cmd_path('clang-format-diff') ne '') {
+		$clang_format_diff = get_cmd_path('clang-format-diff');
+
+		# clang-format-diff before version 8, depends on python2
+		if (get_clang_version() < 8) {
+			$python = "python2";
+		}
+	}
+	return $clang_format_diff;
 }
 
 if (defined $root) {
@@ -201,7 +237,7 @@ if (defined $root) {
 }
 
 if ($clang_format_diff eq '') {
-	$clang_format_diff = get_cmd_path('clang-format-diff.py');
+	$clang_format_diff = find_clang_format_diff();
 }
 
 $orig_branch = git_get_branch();
@@ -213,6 +249,7 @@ if ($orig_branch ne $test_branch) {
 	git_change_branch($test_branch);
 }
 
+my $patch_applies = 1;
 foreach my $patch (@patch_files) {
 	if (! -e $patch) {
 		console_err("Patchfile not found: $patch");
@@ -223,12 +260,14 @@ foreach my $patch (@patch_files) {
 
 	if ($start_rev eq $end_rev) {
 		console_err("Patch apply failed: $patch");
+		$patch_applies = 0;
+		last;
 	} else {
 		console_out("Patch applied successfully: $patch");
 	}
 }
 
-if ($use_clang_format) {
+if ($use_clang_format && $patch_applies) {
 	run_clang_format();
 }
 
