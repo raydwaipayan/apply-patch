@@ -59,7 +59,8 @@ my %VCS_cmds_git = (
 	"get_short_revision" => "git rev-parse --short HEAD",
 	"check_branch" => "git show-ref refs/heads/\$branch",
 	"switch_branch" => "git checkout \$branch",
-	"switch_branch_new" => "git checkout -b \$branch"
+	"switch_branch_new" => "git checkout -b \$branch",
+	"commit_changes" => "git commit -a --amend --no-edit"
 );
 
 sub usage {
@@ -171,6 +172,10 @@ sub run_clang_format {
 	$cmd = $VCS_cmds_git{"get_diff"} . " > clang-format-fixes.diff";
 	my @lines = execute_cmd($cmd);
 	console_info("Diff written to clang-format-fixes.diff");
+
+	$cmd = $VCS_cmds_git{"commit_changes"};
+	execute_cmd($cmd);
+	console_info("Formatted changes committed to $test_branch");
 
 	$cmd = $VCS_cmds_git{"clear_changes"};
 	execute_cmd($cmd);
