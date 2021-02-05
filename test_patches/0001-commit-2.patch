@@ -1,0 +1,46 @@
+From 5870c30be88ac05b11209214485a6b1d84965640 Mon Sep 17 00:00:00 2001
+From: Aditya Srivastava <yashsri421@gmail.com>
+Date: Fri, 5 Feb 2021 22:18:12 +0530
+Subject: [PATCH] commit 2
+
+---
+ arch/x86/entry/calling.h | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/arch/x86/entry/calling.h b/arch/x86/entry/calling.h
+index 07a9331d55e7..041f25efe8cf 100644
+--- a/arch/x86/entry/calling.h
++++ b/arch/x86/entry/calling.h
+@@ -4,7 +4,8 @@
+ #include <asm/cpufeatures.h>
+ #include <asm/page_types.h>
+ #include <asm/percpu.h>
+-#include <asm/asm-offsets.h>
++
++	#include <asm/asm-offsets.h>
+ #include <asm/processor-flags.h>
+ 
+ /*
+@@ -79,7 +80,8 @@ For 32-bit we have the following conventions - kernel is built with
+ #define R9		8*8
+ #define R8		9*8
+ #define RAX		10*8
+-#define RCX		11*8
++
++	#define RCX		11*8
+ #define RDX		12*8
+ #define RSI		13*8
+ #define RDI		14*8
+@@ -97,7 +99,8 @@ For 32-bit we have the following conventions - kernel is built with
+ 
+ #define SIZEOF_PTREGS	21*8
+ 
+-.macro PUSH_AND_CLEAR_REGS rdx=%rdx rax=%rax save_ret=0
++	
++	.macro PUSH_AND_CLEAR_REGS rdx=%rdx rax=%rax save_ret=0
+ 	.if \save_ret
+ 	pushq	%rsi		/* pt_regs->si */
+ 	movq	8(%rsp), %rsi	/* temporarily store the return address in %rsi */
+-- 
+2.17.1
+
