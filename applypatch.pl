@@ -160,6 +160,7 @@ sub git_change_branch {
 }
 
 sub run_clang_format {
+	my ($patch) = @_;
 	if (! -e $clang_format_diff) {
 		console_err('Error: This script requires clang-format-diff to be installed.');
 		exit(2);
@@ -169,9 +170,10 @@ sub run_clang_format {
 	my $cmd = $VCS_cmds_git{"get_diff"} . " $start_rev..$end_rev | $python $clang_format_diff $clang_format_opt";
 	execute_cmd($cmd);
 
-	$cmd = $VCS_cmds_git{"get_diff"} . " > clang-format-fixes.diff";
+	my $diff_file = "$patch.clang-format-fixes.diff";
+	$cmd = $VCS_cmds_git{"get_diff"} . " > $diff_file";
 	my @lines = execute_cmd($cmd);
-	console_info("Diff written to clang-format-fixes.diff");
+	console_info("Diff written to $diff_file");
 
 	$cmd = $VCS_cmds_git{"commit_changes"};
 	execute_cmd($cmd);
@@ -254,7 +256,6 @@ if ($orig_branch ne $test_branch) {
 	git_change_branch($test_branch);
 }
 
-my $patch_applies = 1;
 foreach my $patch (@patch_files) {
 	if (! -e $patch) {
 		console_err("Patchfile not found: $patch");
@@ -265,15 +266,13 @@ foreach my $patch (@patch_files) {
 
 	if ($start_rev eq $end_rev) {
 		console_err("Patch apply failed: $patch");
-		$patch_applies = 0;
 		last;
 	} else {
 		console_out("Patch applied successfully: $patch");
+		if ($use_clang_format) {
+			run_clang_format($patch);
+		}
 	}
-}
-
-if ($use_clang_format && $patch_applies) {
-	run_clang_format();
 }
 
 if ($orig_branch ne $test_branch) {
